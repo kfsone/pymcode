@@ -75,15 +75,26 @@ class Run(object):
         """ Execute the given commands without consulting the queue. """
         if not commands:
             return
-        if isinstance(commands, codes.Code):
+        # User passing us a text line, e.g. "G0 X0 Y1"
+        if isinstance(commands, bytes):
+            commands = commands.encode()
+        if isinstance(commands, (codes.Code, str)):
             commands = (commands,)
-        if self.line_no is None and commands[0].code != "M110":
-            self.line_no = 0
-            self.execute_immediate(ops.set_lineno(1))
 
         checksum, without_comments, writer = self.with_checksum, self.without_comments, self.writer
         history = self.cmd_hist.append
         for command in commands:
+            if isinstance(command, str):
+                command, _, comment = command.partition(';')
+                command = command.strip()
+                tokens = command.split('\s+')
+                code, args = tokens[0], {arg[0]: arg[1:] for arg in tokens[1:]}
+                command = codes.Code(code, **args)
+
+            if self.line_no is None and command.code != "M110":
+                self.line_no = 0
+                self.execute_immediate(ops.set_lineno(1))
+
             writer(command.emit(checksum=checksum, without_comments=without_comments, line_no=self.line_no))
             if command.line_no is not None:
                 self.line_no = command.line_no + 1
@@ -92,7 +103,7 @@ class Run(object):
     def execute(self, commands=None):
         """ Executes optional commands after first executing the queue. """
         queue, self.cmd_queue = self.cmd_queue, []
-        if isinstance(commands, codes.Code):
+        if isinstance(commands, (codes.Code, str, bytes)):
             queue.append(commands)
         else:
             queue.extend(commands or [])
