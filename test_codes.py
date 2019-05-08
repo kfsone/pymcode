@@ -1,26 +1,26 @@
+
 #! *python3-tests:doctest-modules*
 
 import unittest
-from mock import MagicMock
 
-import codes
+from codes import Code
 
-class TestCodes(unittest.TestCase):
-    def test_run(self):
-        setline_cmd = codes.set_lineno(1)
-        self.assertEqual(setline_cmd.code, "M110")
-        self.assertEqual(setline_cmd.parameters, {"N": 1})
-        self.assertEqual(setline_cmd.line_no, 0)
 
-        # Home axis optionally takes a list of axes to be changed
-        home_cmd = codes.home_axis()
-        self.assertEqual(home_cmd.code, "G28")
-        self.assertEqual(home_cmd.parameters, {})
-        self.assertEqual(home_cmd.line_no, None)
-        self.assertEqual(home_cmd, codes.home_axis(x=False, y=None, z=False, optional=None))
+class TestCase(unittest.TestCase):
+    def test_code_basic(self):
+        code = Code("M1")
+        self.assertEqual(code.code, "M1")
+        self.assertEqual(code.comment, "")
+        self.assertEqual(code.parameters, {})
+        self.assertEqual(code.checksummable, True)
+        self.assertEqual(code.line_no, None)
 
-        home_cmd = codes.home_axis(x=True, y=True, optional=False)
-        self.assertEqual(home_cmd.parameters, {'X': '', 'Y': ''})
-
-        home_cmd = codes.home_axis(z=True, optional=True)
-        self.assertEqual(home_cmd.parameters, {'Z': '', 'O': ''})
+    def test_code_populous(self):
+        code = Code(code="M999", checksum_exception=True, line_no=3,
+                    comment="Test code",
+                    S=1, T=2, U=111)
+        self.assertEqual(code.code, "M999")
+        self.assertEqual(code.comment, "Test code")
+        self.assertEqual(code.parameters, {'S': 1, 'T': 2, 'U': 111})
+        self.assertEqual(code.checksummable, False)
+        self.assertEqual(code.line_no, 3)

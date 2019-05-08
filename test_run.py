@@ -3,15 +3,15 @@
 import unittest
 from mock import MagicMock
 
-import codes
+import ops
 import run
 
 
 class TestRun(unittest.TestCase):
     def test_run(self):
-        setline_cmd = codes.set_lineno(1)
-        home_cmd = codes.home_axis()
-        temp_cmd = codes.get_temp()
+        setline_cmd = ops.set_lineno(1)
+        home_cmd = ops.home_axis()
+        temp_cmd = ops.get_temp()
 
         with MagicMock() as writer:
             r = run.Run(writer=writer)

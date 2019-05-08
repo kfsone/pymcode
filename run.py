@@ -1,11 +1,49 @@
 #! *python3:doctest-modules*
 
 import codes
+import ops
+import sys
 
+
+# -----------------------------------------------------------------------------
+#
+class Writer(object):
+    """ Base class for the Writer interface which implements a __call__ method that takes a string
+        and sends it to the output stream """
+    def __call__(self, line):
+        """ Run will forward executing lines to this function """
+        print(line)
+
+
+# -----------------------------------------------------------------------------
+#
+class GriffinWriter(Writer):
+    """ Emits commands in a format suitable for use with griffin's utility that has a "sendgcode" command
+
+    :param outstream: Specify the file/stream to write to, default stdout
+    :param cmd_format: Optionally override the format ('sendgcode {line}\n')
+    """
+    def __init__(self, outstream=sys.stdout, cmd_format="sendgcode {line}\n"):
+        self.stdout = outstream
+        self.cmd_format = cmd_format
+
+    def __call__(self, line):
+        """ Output a line suitable for pasting into, e.g, an Ultimaker 3 command line
+        >>> class MockStream:
+        ...    def write(self, text): print(text, end='')
+        >>> g = GriffinWriter(outstream=MockStream())
+        >>> g("M110 N999")
+        sendgcode M110 N999
+        """
+        self.stdout.write(self.cmd_format.format(line=line))
+
+
+# -----------------------------------------------------------------------------
+#
 class Run(object):
     """ Encapsulation of a run of commands, with the ability to queue and run commands while tracking line numbers for checksums """
 
-    def __init__(self, without_comments=False, with_checksum=False, writer=print):
+    def __init__(self, without_comments=False, with_checksum=False, writer=Writer()):
         self.with_checksum = with_checksum
         self.without_comments = without_comments
         self.writer = writer
@@ -41,7 +79,7 @@ class Run(object):
             commands = (commands,)
         if self.line_no is None and commands[0].code != "M110":
             self.line_no = 0
-            self.execute_immediate(codes.set_lineno(1))
+            self.execute_immediate(ops.set_lineno(1))
 
         checksum, without_comments, writer = self.with_checksum, self.without_comments, self.writer
         history = self.cmd_hist.append
