@@ -34,10 +34,12 @@ import code, ops, run
 import IPython
 import argparse
 import logging
+import re
 import subprocess
 import sys
 import time
 
+from inspect import cleandoc, signature
 from threading import Thread
 from queue import Queue, Empty
 
@@ -114,6 +116,7 @@ class Ultimaker3(run.GriffinWriter):
         """ Implement the Writer protocol """
         pstdin, pstdout = self.ssh_client.stdin, self.ssh_client.stdout
         line = self.cmd_format.format(line=line)
+        print(">> " + line)
         pstdin.write((line + "\n").encode())
         pstdin.flush()
         self.await_cmd()
@@ -136,12 +139,50 @@ class Ultimaker3(run.GriffinWriter):
             self.ssh_client.kill()
 
 
+def cmd_help(args):
+    if not args or args == "all":
+        print("Repl-Commands: exit/quit, go, queue, help.")
+        print("To queue raw gcode, start with a ' or \" character.")
+        print("G/MCode Commands:")
+        helpCheck = re.compile("^[a-z]").match
+        print(", ".join(cmd for cmd in dir(ops) if helpCheck(cmd)))
+    else:
+        print()
+        for arg in args:
+            if arg == "exit" or arg == "quit":
+                print(f"{arg}: Returns to ipython")
+            elif arg == "go":
+                print("Send any queued commands")
+            elif arg == "list":
+                print("List queued commands")
+            elif arg == "help":
+                print("This.")
+            else:
+                fn = getattr(ops, arg, None)
+                if not fn:
+                    print("Unrecognized command:", arg)
+                else:
+                    print("Ok.")
+                    print("===", arg, str(signature(fn))[1:-1])
+                    print(re.sub(r'^', cleandoc(fn.__doc__), '    '), re.M)
+            print()
+
+
+def cmd_list():
+    if not um3.cmd_queue:
+        print("Nothing queued.")
+        return
+
+    print("Queued commands:")
+    for code in um3.cmd_queue:
+        print(code)
+
 def main(arglist):
     parser = argparse.ArgumentParser()
     parser.add_argument("--user", "-u",     type=str, help="Username [default: 'ultimaker']", default='ultimaker')
     parser.add_argument("--ssh",  "-S",     type=str, help="SSH Command [default: 'ssh']", default='ssh')
     parser.add_argument("--identity", "-i", type=str, help="Identity file to use [default: None]", default=None)
-    parser.add_argument("--verbose", "-v",  action="count", help="Increased verbosity")
+    parser.add_argument("--verbose", "-v",  action="count", help="Increased verbosity", default=0)
     parser.add_argument("printer",          type=str, help="Network name/address of the printer")
 
     args = parser.parse_args(arglist)
@@ -152,7 +193,45 @@ def main(arglist):
 
     with Ultimaker3(host_addr=args.printer, user=args.user, identity=args.identity) as writer:
         um3 = run.Run(with_checksum=False, writer=writer)
+        globals()["um3"] = um3
         IPython.embed()
+
+
+def repl():
+    while True:
+        line = input("Code: ").strip()
+        atoms = line.split()
+        if not atoms:
+            continue
+        cmd, args = atoms[0], atoms[1:]
+
+        if cmd == "exit" or cmd == "quit":
+            return
+        elif cmd == "go":
+            um3.execute()
+        elif cmd == "list":
+            cmd_list()
+        elif cmd == "help":
+            cmd_help(args)
+        else:
+            if cmd[0] == '"' or cmd[0] == "'":
+                cmd = cmd.strip(cmd[0])
+            else:
+                atoms = cmd.split(r'\s+')
+                function, args = atoms[0], atoms[1:]
+                # lookup the command name
+                func = getattr(ops, function, None)
+                if not func:
+                    print("XX Unknown command: %s" % function)
+                    continue
+                kwargs = {}
+                for arg in args:
+                    key, value = arg.split('=')
+                    kwargs[key] = value
+                print("kwargs =", kwargs)
+                cmd = func(**kwargs)
+            print("Queueing:", cmd)
+            um3.queue(cmd)
 
 
 if __name__ == "__main__":
