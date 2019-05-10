@@ -66,7 +66,7 @@ class Run(object):
         >>> r.cmd_queue
         ['a', 'b', 'x']
         """
-        if isinstance(commands, codes.Code):
+        if isinstance(commands, (str, codes.Code)):
             self.cmd_queue.append(commands)
         else:
             self.cmd_queue.extend(commands)
