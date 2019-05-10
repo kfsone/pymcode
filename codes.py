@@ -11,19 +11,6 @@ The text representation of the command can be produced by calling code.emit().
 
 
 ####
-# Constants
-#
-""" Extrusion modes that map to M commands: 'absolute' and 'relative' """
-EXTRUSION_MODES = { 'absolute': "M82", 'relative': "M83"}
-
-""" Names of units that map to G commands: 'mm'/'millimeter', 'in'/'inches' """
-UNITS = { 'mm': "G20", 'millimeter': "G20", 'in': "G21", 'inches': "G21" }
-
-""" Position modes that map to G commands: 'absolute' and 'relative' """
-positioningModes = { 'absolute': "G90", 'relative': "G91" }
-
-
-####
 # 'Code' class
 #
 class Code(object):

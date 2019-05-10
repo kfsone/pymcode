@@ -14,6 +14,17 @@ from codes import Code
 
 
 ####
+# Constants
+#
+""" Extrusion modes that map to M commands: 'absolute' and 'relative' """
+EXTRUSION_MODES = { 'absolute': "M82", 'relative': "M83"}
+""" Names of units that map to G commands: 'mm'/'millimeter', 'in'/'inches' """
+UNITS = { 'mm': "G20", 'millimeter': "G20", 'millimeters': "G20", 'in': "G21", 'inch': "G21", 'inches': "G21" }
+""" Position modes that map to G commands: 'absolute' and 'relative' """
+POSITIONING_MODES = { 'absolute': "G90", 'relative': "G91" }
+
+
+####
 # Parameter-type helper classes
 #
 def Bool(value):
@@ -35,6 +46,12 @@ def Bool(value):
 ####
 # Code functions
 #
+def set_toolidx(toolidx):
+    """ Specifies which print head/tool index you want to be default """
+    if not isinstance(toolidx, int):
+        toolidx = int(toolidx)
+    return Code(f"T{toolidx:d}")
+
 def set_lineno(number):
     """ M110: to set the current line number
     >>> set_lineno(555)
@@ -81,11 +98,11 @@ def set_extrudemode(ext_mode):
 
 def set_units(unit):
     """ G20/G21: Switch units: mm/millimeter or in/inches """
-    return Code(units[unit], comment=f"Set units to {unit}")
+    return Code(UNITS[unit], comment=f"Set units to {unit}")
 
 def set_positioning(pos_mode):
     """ G90/G91: Change positioning mode to absolute/relative """
-    return Code(positioningModes[pos_mode], comment=f"set pos_mode positioning mode")
+    return Code(POSITIONING_MODES[pos_mode], comment=f"set pos_mode positioning mode")
 
 def set_fanspeed(speed, fanidx=None, secondary=None):
     """ M106: Set the fan speed (-1 for off, 0-255)"""
@@ -105,6 +122,8 @@ def set_axisstepsperunit(steps=None, extruderidx=None, x_units=None, y_units=Non
 
 def move(x=None, y=None, z=None, feed_rate=None, filament=None, extruding=False):
     """ G0/G1: Move the active print head """
+    if not( x or y or z or feed_rate or filament):
+        raise ValueError("move requires at least one argument")
     extruding = extruding or bool(filament)
     if feed_rate: feed_rate *= 60
     return Code("G0" if not extruding else "G1",
